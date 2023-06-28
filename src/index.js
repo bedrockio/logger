@@ -28,24 +28,22 @@ function setupGoogleCloud(options) {
     ...options,
   };
 
-  function getTracePayload() {
-    if (options.getSpanContext) {
-      const context = options.getSpanContext();
-      if (context) {
-        const { spanId, traceId, traceFlags } = context;
-        return {
-          "logging.googleapis.com/spanId": spanId,
-          "logging.googleapis.com/trace": traceId,
-          "logging.googleapis.com/trace_sampled": traceFlags === 1,
-        };
-      }
-    }
-  }
-
   if (options.logging) {
-    useGoogleCloud({
-      getTracePayload: getTracePayload,
-    });
+    const options = {};
+    if (options.getSpanContext) {
+      options.getTracePayload = function getTracePayload() {
+        const context = options.getSpanContext();
+        if (context) {
+          const { spanId, traceId, traceFlags } = context;
+          return {
+            "logging.googleapis.com/spanId": spanId,
+            "logging.googleapis.com/trace": traceId,
+            "logging.googleapis.com/trace_sampled": traceFlags === 1,
+          };
+        }
+      };
+    }
+    useGoogleCloud(options);
   }
 }
 
