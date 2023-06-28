@@ -1,7 +1,7 @@
-import consoleAsync from '../utils/async-console';
-import { isTTY } from '../utils/env';
+import consoleAsync from "../utils/async-console";
+import { isTTY } from "../utils/env";
 
-import BaseLogger from './BaseLogger';
+import BaseLogger from "./BaseLogger";
 
 // Note: GCP severity levels are described here:
 // https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry#LogSeverity
@@ -13,19 +13,19 @@ import BaseLogger from './BaseLogger';
 
 export default class GoogleCloudLogger extends BaseLogger {
   debug(...args) {
-    return this.emit('DEBUG', ...args);
+    return this.emit("DEBUG", ...args);
   }
 
   info(...args) {
-    return this.emit('INFO', ...args);
+    return this.emit("INFO", ...args);
   }
 
   warn(...args) {
-    return this.emit('WARNING', ...args);
+    return this.emit("WARNING", ...args);
   }
 
   error(...args) {
-    return this.emit('ERROR', ...args);
+    return this.emit("ERROR", ...args);
   }
 
   emit(severity, ...args) {
@@ -36,7 +36,7 @@ export default class GoogleCloudLogger extends BaseLogger {
 
     args = printf(args);
 
-    message = args.map((arg) => dump(arg)).join(' ');
+    message = args.map((arg) => dump(arg)).join(" ");
 
     this.emitPayload({
       severity,
@@ -48,7 +48,7 @@ export default class GoogleCloudLogger extends BaseLogger {
   formatRequest(info) {
     // https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry
     let { method, path, status, latency, size } = info;
-    const severity = status < 500 ? 'INFO' : 'ERROR';
+    const severity = status < 500 ? "INFO" : "ERROR";
     const message = `${method} ${path} ${size} - ${latency}ms`;
 
     this.emitPayload({
@@ -92,7 +92,7 @@ function isPrimitive(arg) {
 function dump(arg, level = 0) {
   if (Array.isArray(arg)) {
     if (level < 1) {
-      const str = arg.map((el) => dump(el, level + 1)).join(', ');
+      const str = arg.map((el) => dump(el, level + 1)).join(", ");
       return `[${str}]`;
     } else {
       return `[...]`;
@@ -106,10 +106,10 @@ function dump(arg, level = 0) {
         .map((key) => {
           return `"${key}": ${dump(arg[key], level + 1)}`;
         })
-        .join(', ');
+        .join(", ");
       return `{${str}}`;
     } else {
-      return '{...}';
+      return "{...}";
     }
   } else {
     return level > 0 ? JSON.stringify(arg) : arg;
@@ -120,10 +120,10 @@ const PRINTF_REG = /%(s|d|i)/g;
 
 function printf(args) {
   let [first] = args;
-  if (typeof first === 'string') {
+  if (typeof first === "string") {
     first = first.replace(PRINTF_REG, (all, op) => {
       let inject = args.splice(1, 1)[0];
-      if (op === 'd' || op === 'i') {
+      if (op === "d" || op === "i") {
         inject = Number(inject);
       }
       return inject;
