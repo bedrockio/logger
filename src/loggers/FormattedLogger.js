@@ -1,12 +1,12 @@
-import { gray, yellow, red, cyan, green } from 'kleur';
+import { gray, yellow, red, cyan, green } from "kleur";
 
-import ConsoleLogger from './ConsoleLogger';
+import ConsoleLogger from "./ConsoleLogger";
 
 export default class FormattedLogger extends ConsoleLogger {
   print(level, ...args) {
     const fn = console[level];
     let msg = `${this.getDateTag()} ${this.getLevelTag(level)}`;
-    if (typeof args[0] === 'string') {
+    if (typeof args[0] === "string") {
       const [first, ...rest] = args;
       msg += ` ${first}`;
       args = rest;
@@ -22,7 +22,7 @@ export default class FormattedLogger extends ConsoleLogger {
   }
 
   getLevelTag(level) {
-    let tag = level.toUpperCase().padStart(5, ' ');
+    let tag = level.toUpperCase().padStart(5, " ");
     return this.formatForLevel(level, tag);
   }
 

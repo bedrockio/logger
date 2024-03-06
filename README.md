@@ -16,7 +16,7 @@ yarn install @bedrockio/logger
 ## Usage
 
 ```js
-const logger = require('@bedrockio/logger');
+const logger = require("@bedrockio/logger");
 logger.setupGoogleCloud({
   // Set up gcloud structured logging. Default true.
   logging: true,
@@ -32,10 +32,10 @@ This initialization code should be added as early as possible in your applicatio
 Enable both logging and tracing and tell the tracing to ignore specific paths.
 
 ```js
-const logger = require('@bedrockio/logger');
+const logger = require("@bedrockio/logger");
 logger.setupGoogleCloud({
   tracing: {
-    ignoreIncomingPaths: ['/'],
+    ignoreIncomingPaths: ["/"],
   },
 });
 ```
@@ -61,20 +61,15 @@ Sets the logger to use console output for development. This is the default.
 
 Sets the logger to output structured logs in JSON format. Accepts an `options` object:
 
-- `getTracePayload` - This connects the logger to tracing, allowing you to batch logs by requests.
-
-#### `logger.useGoogleCloudTracing`
-
-Enables batched Google Cloud tracing for Koa and Mongoose. This will allow discovery of slow operations in your
-application. The [Cloud Trace](https://cloud.google.com/trace) API must be enabled to use this.
+- `getSpanContext` - This connects the logger to tracing, allowing you to batch logs by requests.
 
 #### `logger.middleware`
 
 Koa middleware that logs HTTP requests:
 
 ```js
-const Koa = require('koa');
-const logger = require('@bedrockio/logging');
+const Koa = require("koa");
+const logger = require("@bedrockio/logging");
 
 const app = new Koa();
 app.use(logger.middleware());
@@ -83,10 +78,10 @@ app.use(logger.middleware());
 ### Logger Methods
 
 ```js
-logger.debug('Hello');
-logger.info('Hello');
-logger.warn('Hello');
-logger.error('Hello');
+logger.debug("Hello");
+logger.info("Hello");
+logger.warn("Hello");
+logger.error("Hello");
 ```
 
 The basic methods will output logs at different levels.
@@ -95,7 +90,7 @@ The basic methods will output logs at different levels.
 
 ```js
 logger.info({
-  foo: 'bar',
+  foo: "bar",
 });
 ```
 
@@ -106,7 +101,7 @@ logger it will output a structured JSON payload that allows inspecting of the ob
 ### Multiple Arguments
 
 ```js
-logger.info('foo', 'bar');
+logger.info("foo", "bar");
 logger.info(obj1, obj2);
 ```
 
@@ -116,7 +111,7 @@ message and export complex objects to the JSON payload.
 ### String Formatting
 
 ```js
-logger.info('%s -> %s', 'foo', 'bar'); // foo -> bar
+logger.info("%s -> %s", "foo", "bar"); // foo -> bar
 ```
 
 Basic printf style formatting is supported out of the box by the console logger, and the Google Cloud console will

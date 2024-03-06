@@ -8,9 +8,8 @@ import {
   useConsole,
   useFormatted,
   useGoogleCloud,
-} from './logger';
-import middleware from './middleware';
-import { useGoogleCloudTracing, getTracePayload } from './tracing';
+} from "./logger";
+import middleware from "./middleware";
 
 const DEFAULT_OPTIONS = {
   logging: true,
@@ -21,6 +20,7 @@ const DEFAULT_OPTIONS = {
  * @param {Object} [options]
  * @param {boolean} [options.logging=true]
  * @param {boolean|Object} [options.tracing=true]
+ * @param {function} [options.getSpanContext]
  */
 function setupGoogleCloud(options) {
   options = {
@@ -29,15 +29,21 @@ function setupGoogleCloud(options) {
   };
 
   if (options.logging) {
-    useGoogleCloud({
-      getTracePayload: getTracePayload,
-    });
-  }
-
-  if (options.tracing) {
-    useGoogleCloudTracing({
-      ignoreIncomingPaths: options.tracing?.ignoreIncomingPaths,
-    });
+    const options = {};
+    if (options.getSpanContext) {
+      options.getTracePayload = function getTracePayload() {
+        const context = options.getSpanContext();
+        if (context) {
+          const { spanId, traceId, traceFlags } = context;
+          return {
+            "logging.googleapis.com/spanId": spanId,
+            "logging.googleapis.com/trace": traceId,
+            "logging.googleapis.com/trace_sampled": traceFlags === 1,
+          };
+        }
+      };
+    }
+    useGoogleCloud(options);
   }
 }
 
