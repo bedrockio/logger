@@ -57,8 +57,8 @@ export default class GoogleCloudLogger extends BaseLogger {
       httpRequest: {
         requestMethod: method,
         requestUrl: path,
-        requestSize: info.requestLength,
-        responseSize: info.responseLength,
+        requestSize: info.requestLength?.toString(),
+        responseSize: info.responseLength?.toString(),
         status: info.status,
         referer: info.referer,
         remoteIp: info.remoteIp,
