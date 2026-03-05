@@ -57,6 +57,7 @@ describe('basic logging', () => {
 
   it('should format a successful request', async () => {
     logger.formatRequest({
+      level: 'info',
       method: 'POST',
       path: '/',
       status: 200,
@@ -68,6 +69,7 @@ describe('basic logging', () => {
 
   it('should format a bad request', async () => {
     logger.formatRequest({
+      level: 'error',
       method: 'POST',
       path: '/',
       status: 500,

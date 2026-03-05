@@ -131,53 +131,96 @@ const app = new Koa();
 app.use(logger.middleware());
 ```
 
-### Recording Request Body
+### Extra Fields
 
-The logger middleware allows the request body to be recorded in the logs. This
-must be opted into:
+You can append custom fields to every log entry with `getExtraFields` — a
+function that receives the Koa context and returns an object of fields to
+include.
 
 ```js
 app.use(logger.middleware({
-   recordParams: [
-    {
-      // Record all params for this route with status >= 400
-      path: '/1/foo',
-    },
-    {
-      // Record all params for this route with status >= 200
-      status: 200,
-      path: '/1/foo',
-    },
-    {
-      // Record only POST requests
-      method: 'POST',
-      path: '/1/foo',
-    },
-    {
-      // Match path by regex
-      path: /\/1\//foo/,
-    },
-    {
-      // Include only specific params
-      include: ['shop']
-    },
-    {
-      // Include all but excluded params
-      exclude: ['shop']
-    },
-    {
-      // Params also support regexes
-      include: [/shop/]
-    },
-  ],
+  getExtraFields: (ctx) => ({
+    organizationId: ctx.state?.organization?.id,
+    requestId: ctx.get('x-request-id'),
+  }),
 }));
 ```
 
-Passing `true` for the flag here will enable for all requests.
+Note: `getExtraFields` is ignored when `shouldLogVerbose` is active, as verbose
+logging provides its own set of extra fields.
 
-```
-// Records all request >= (over status 400 by default)
+### Custom Log Level
+
+By default, requests with status >= 500 are logged at `error` level and all
+others at `info`. You can override this with the `getLogLevel` option — a
+function that receives the Koa context and returns a log level string.
+
+```js
 app.use(logger.middleware({
-   recordParams: true,
+  // Log 4xx responses as warnings.
+  getLogLevel: (ctx) => {
+    if (ctx.status >= 500) return 'error';
+    if (ctx.status >= 400) return 'warn';
+    return 'info';
+  },
+}));
+```
+
+If `getLogLevel` returns a falsy value, the default behavior is used.
+
+### Verbose Request Logging
+
+The logger middleware can record request body, query, and response body. This
+is controlled by the `shouldLogVerbose` option — a function that receives the
+Koa context and returns truthy to enable verbose logging for that request.
+
+```js
+app.use(logger.middleware({
+  // Log verbose info for all error responses.
+  shouldLogVerbose: (ctx) => ctx.status >= 400,
+}));
+```
+
+```js
+app.use(logger.middleware({
+  // Log verbose info for a specific route.
+  shouldLogVerbose: (ctx) => ctx.url.startsWith('/1/foo'),
+}));
+```
+
+### Filtering Fields
+
+By default, fields matching common sensitive names (`token`, `password`,
+`secret`, `hash`, `jwt`) are automatically stripped from logged bodies and
+queries. You can customize this with `allowedFields` (whitelist) and
+`disallowedFields` (blacklist), which filter individual keys within each logged
+object.
+
+Each accepts a string, regex, array of strings/regexes, or a function that
+receives the Koa context and returns any of the above.
+
+```js
+app.use(logger.middleware({
+  shouldLogVerbose: (ctx) => ctx.status >= 400,
+  // Only include specific fields in logged bodies.
+  allowedFields: ['name', 'email', 'status'],
+}));
+```
+
+```js
+app.use(logger.middleware({
+  shouldLogVerbose: (ctx) => ctx.status >= 400,
+  // Exclude additional fields beyond the defaults.
+  disallowedFields: /token|password|secret|hash|jwt|creditCard/i,
+}));
+```
+
+```js
+app.use(logger.middleware({
+  shouldLogVerbose: (ctx) => true,
+  // Use a function for dynamic filtering.
+  allowedFields: (ctx) => {
+    return ctx.method === 'GET' ? ['q', 'page'] : ['name', 'email'];
+  },
 }));
 ```
