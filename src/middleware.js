@@ -138,7 +138,9 @@ function applyFilters(ctx, obj, options) {
     obj = omit(obj, disallowed);
   }
 
-  return obj;
+  if (Object.keys(obj).length) {
+    return obj;
+  }
 }
 
 function isSerializable(obj) {
