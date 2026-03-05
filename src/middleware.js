@@ -14,7 +14,7 @@ export default function middleware(options) {
       const start = new Date();
       ctx.res.once('finish', () => {
         formatRequest({
-          ...getRequestInfo(ctx),
+          ...getRequestInfo(ctx, options),
           ...getRequestExtra(ctx, options),
           // @ts-ignore
           latency: new Date() - start,
@@ -40,9 +40,9 @@ function isAllowedRequest(ctx, options = {}) {
   });
 }
 
-function getRequestInfo(ctx) {
+function getRequestInfo(ctx, options) {
   const { headers } = ctx.request;
-  const level = ctx.status < 500 ? 'info' : 'error';
+  const level = getLogLevel(ctx, options);
   const requestLength = ctx.request.headers['content-length'];
   const responseLength = ctx.response.headers['content-length'];
   const size = bytes(Number(responseLength || 0));
@@ -73,6 +73,15 @@ function getRequestInfo(ctx) {
   };
 }
 
+function getLogLevel(ctx, options = {}) {
+  const { getLogLevel } = options;
+
+  let level = getLogLevel?.(ctx);
+  level ||= ctx.status >= 500 ? 'error' : 'info';
+
+  return level;
+}
+
 const BLACKLIST = /token|password|secret|hash|jwt/i;
 
 function getRequestExtra(ctx, options = {}) {
@@ -94,8 +103,8 @@ function getRequestExtra(ctx, options = {}) {
 }
 
 function applyFilters(ctx, obj, options) {
-  if (!obj || typeof obj !== 'object') {
-    return obj;
+  if (!isSerializable(obj)) {
+    return;
   }
 
   const { allowedFields, disallowedFields = BLACKLIST } = options;
@@ -112,6 +121,10 @@ function applyFilters(ctx, obj, options) {
   }
 
   return obj;
+}
+
+function isSerializable(obj) {
+  return obj?.constructor === Object || Array.isArray(obj);
 }
 
 function resolveFields(ctx, arg) {
@@ -136,6 +149,9 @@ function resolveFields(ctx, arg) {
  * @property {FieldFilter} [disallowedFields] Blacklist of field names within each
  *   logged object. Defaults to a regex matching sensitive names like token,
  *   password, secret, hash, and jwt.
+ * @property {(ctx: Object) => string} [getLogLevel] Function that receives the
+ *   Koa context and returns a log level string (e.g. 'info', 'warn', 'error').
+ *   Falls back to 'error' for status >= 500, otherwise 'info'.
  * @property {(RegExp|string)[]} [ignoreUserAgents] User-Agent patterns to ignore.
  *   Defaults to GCE and Kubernetes health check agents.
  */

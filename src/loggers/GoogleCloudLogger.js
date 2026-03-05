@@ -11,6 +11,13 @@ import BaseLogger from './BaseLogger';
 // - WARNING
 // - ERROR
 
+const SEVERITY_MAP = {
+  debug: 'DEBUG',
+  info: 'INFO',
+  warn: 'WARNING',
+  error: 'ERROR',
+};
+
 export default class GoogleCloudLogger extends BaseLogger {
   debug(...args) {
     return this.emit('DEBUG', ...args);
@@ -44,8 +51,8 @@ export default class GoogleCloudLogger extends BaseLogger {
 
   formatRequest(info) {
     // https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry
-    let { method, path, status, latency, size } = info;
-    const severity = status < 500 ? 'INFO' : 'ERROR';
+    let { level, method, path, latency, size } = info;
+    const severity = SEVERITY_MAP[level] || 'INFO';
     const message = `${method} ${path} ${size} - ${latency}ms`;
 
     this.emitPayload({

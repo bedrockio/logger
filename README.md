@@ -131,6 +131,25 @@ const app = new Koa();
 app.use(logger.middleware());
 ```
 
+### Custom Log Level
+
+By default, requests with status >= 500 are logged at `error` level and all
+others at `info`. You can override this with the `getLogLevel` option — a
+function that receives the Koa context and returns a log level string.
+
+```js
+app.use(logger.middleware({
+  // Log 4xx responses as warnings.
+  getLogLevel: (ctx) => {
+    if (ctx.status >= 500) return 'error';
+    if (ctx.status >= 400) return 'warn';
+    return 'info';
+  },
+}));
+```
+
+If `getLogLevel` returns a falsy value, the default behavior is used.
+
 ### Verbose Request Logging
 
 The logger middleware can record request body, query, and response body. This

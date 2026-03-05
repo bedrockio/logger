@@ -273,6 +273,75 @@ describe('google cloud middleware', () => {
     expect(getMessages()).toEqual([]);
   });
 
+  describe('custom log level', () => {
+    it('should default to info for status < 500', () => {
+      const ctx = createContext({
+        url: '/foo',
+        method: 'GET',
+        status: 200,
+      });
+      runRequest(ctx);
+      const [, message] = getMessages()[0];
+      expect(JSON.parse(message)).toMatchObject({
+        severity: 'INFO',
+      });
+    });
+
+    it('should default to error for status >= 500', () => {
+      const ctx = createContext({
+        url: '/foo',
+        method: 'GET',
+        status: 500,
+      });
+      runRequest(ctx);
+      const [, message] = getMessages()[0];
+      expect(JSON.parse(message)).toMatchObject({
+        severity: 'ERROR',
+      });
+    });
+
+    it('should use getLogLevel when provided', () => {
+      const ctx = createContext({
+        url: '/foo',
+        method: 'GET',
+        status: 200,
+      });
+      runRequest(ctx, {
+        getLogLevel: () => 'warn',
+      });
+      const [, message] = getMessages()[0];
+      expect(JSON.parse(message)).toMatchObject({
+        severity: 'WARNING',
+      });
+    });
+
+    it('should pass context to getLogLevel', () => {
+      const getLogLevel = jest.fn(() => 'debug');
+      const ctx = createContext({
+        url: '/foo',
+        method: 'GET',
+        status: 200,
+      });
+      runRequest(ctx, { getLogLevel });
+      expect(getLogLevel).toHaveBeenCalledWith(ctx);
+    });
+
+    it('should fall back to default when getLogLevel returns falsy', () => {
+      const ctx = createContext({
+        url: '/foo',
+        method: 'GET',
+        status: 500,
+      });
+      runRequest(ctx, {
+        getLogLevel: () => null,
+      });
+      const [, message] = getMessages()[0];
+      expect(JSON.parse(message)).toMatchObject({
+        severity: 'ERROR',
+      });
+    });
+  });
+
   describe('verbose request logging', () => {
     it('should not record anything by default', () => {
       const ctx = createContext({
@@ -532,6 +601,22 @@ describe('google cloud middleware', () => {
         disallowedFields: ['bad'],
       });
       assertBodyRecorded({ bar: 'baz' });
+    });
+
+    it('should not log binary request body', () => {
+      const ctx = createContext({
+        status: 200,
+        request: {
+          body: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+        },
+      });
+      runRequest(ctx, {
+        shouldLogVerbose: () => true,
+      });
+      const [level, message] = getMessages()[0];
+      expect(level).toBe('log');
+      const parsed = JSON.parse(message);
+      expect(parsed).not.toHaveProperty('requestBody');
     });
 
     it('should apply filters to query params as well', () => {

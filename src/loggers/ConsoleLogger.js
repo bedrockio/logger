@@ -39,8 +39,7 @@ export default class ConsoleLogger extends BaseLogger {
   }
 
   formatRequest(request) {
-    let { method, path, status, latency, size } = request;
-    const level = status < 500 ? 'info' : 'error';
+    let { level, method, path, status, latency, size } = request;
     method = method.padEnd(6, ' ');
     status = this.formatStatus(status);
     const meta = this.formatMeta(`${path} ${latency}ms ${size}`);
