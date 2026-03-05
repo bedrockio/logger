@@ -273,7 +273,7 @@ describe('google cloud middleware', () => {
     expect(getMessages()).toEqual([]);
   });
 
-  describe('request body recording', () => {
+  describe('verbose request logging', () => {
     it('should not record anything by default', () => {
       const ctx = createContext({
         status: 400,
@@ -287,7 +287,13 @@ describe('google cloud middleware', () => {
       assertBodyRecorded(null);
     });
 
-    it('should record all params', () => {
+    it('should throw if shouldLogVerbose is not a function', () => {
+      expect(() => {
+        middleware({ shouldLogVerbose: true });
+      }).toThrow('shouldLogVerbose must be a function.');
+    });
+
+    it('should record request body when shouldLogVerbose returns true', () => {
       const ctx = createContext({
         status: 400,
         request: {
@@ -297,123 +303,14 @@ describe('google cloud middleware', () => {
         },
       });
       runRequest(ctx, {
-        recordParams: true,
+        shouldLogVerbose: () => true,
       });
       assertBodyRecorded({
         bar: 'baz',
       });
     });
 
-    it('should match route by string', () => {
-      const ctx = createContext({
-        url: '/foo',
-        status: 400,
-        request: {
-          body: {
-            bar: 'baz',
-          },
-        },
-      });
-      runRequest(ctx, {
-        recordParams: [
-          {
-            path: '/foo',
-          },
-        ],
-      });
-      assertBodyRecorded({
-        bar: 'baz',
-      });
-    });
-
-    it('should match route by regex', () => {
-      const ctx = createContext({
-        url: '/foo',
-        status: 400,
-        request: {
-          body: {
-            bar: 'baz',
-          },
-        },
-      });
-      runRequest(ctx, {
-        recordParams: [
-          {
-            path: /\/foo/,
-          },
-        ],
-      });
-      assertBodyRecorded({
-        bar: 'baz',
-      });
-    });
-
-    it('should not log below 400 status by default', () => {
-      const ctx = createContext({
-        url: '/foo',
-        status: 200,
-        request: {
-          body: {
-            bar: 'baz',
-          },
-        },
-      });
-      runRequest(ctx, {
-        recordParams: [
-          {
-            path: /\/foo/,
-          },
-        ],
-      });
-      assertBodyRecorded(null);
-    });
-
-    it('should match status below 400', () => {
-      const ctx = createContext({
-        url: '/foo',
-        status: 200,
-        request: {
-          body: {
-            bar: 'baz',
-          },
-        },
-      });
-      runRequest(ctx, {
-        recordParams: [
-          {
-            status: 200,
-            path: /\/foo/,
-          },
-        ],
-      });
-      assertBodyRecorded({
-        bar: 'baz',
-      });
-    });
-
-    it('should match only PATCH requests', () => {
-      const ctx = createContext({
-        url: '/foo',
-        method: 'POST',
-        status: 400,
-        request: {
-          body: {
-            bar: 'baz',
-          },
-        },
-      });
-      runRequest(ctx, {
-        recordParams: [
-          {
-            method: 'PATCH',
-            path: '/foo',
-          },
-        ],
-      });
-      assertBodyRecorded(null);
-    });
-
-    it('should log query for errored GET request', () => {
+    it('should record request query when shouldLogVerbose returns true', () => {
       const ctx = createContext({
         url: '/foo',
         method: 'GET',
@@ -425,209 +322,229 @@ describe('google cloud middleware', () => {
         },
       });
       runRequest(ctx, {
-        recordParams: true,
+        shouldLogVerbose: () => true,
       });
       assertQueryRecorded({
         bar: 'baz',
       });
     });
 
-    it('should not expose sensitive fields in body', () => {
+    it('should not record when shouldLogVerbose returns false', () => {
       const ctx = createContext({
-        url: '/foo',
-        method: 'POST',
         status: 400,
         request: {
           body: {
             bar: 'baz',
-            secret: 'BAD',
-            token: 'BAD',
+          },
+        },
+      });
+      runRequest(ctx, {
+        shouldLogVerbose: () => false,
+      });
+      assertBodyRecorded(null);
+    });
+
+    it('should pass context to shouldLogVerbose', () => {
+      const shouldLogVerbose = jest.fn(() => true);
+      const ctx = createContext({
+        url: '/foo',
+        status: 400,
+        request: {
+          body: {
+            bar: 'baz',
+          },
+        },
+      });
+      runRequest(ctx, { shouldLogVerbose });
+      expect(shouldLogVerbose).toHaveBeenCalledWith(ctx);
+    });
+
+    it('should conditionally log based on context', () => {
+      const ctx = createContext({
+        url: '/foo',
+        status: 200,
+        request: {
+          body: {
+            bar: 'baz',
+          },
+        },
+      });
+      runRequest(ctx, {
+        shouldLogVerbose: (ctx) => ctx.status >= 400,
+      });
+      assertBodyRecorded(null);
+    });
+
+    it('should strip sensitive fields by default', () => {
+      const ctx = createContext({
+        status: 400,
+        request: {
+          body: {
+            name: 'test',
             password: 'BAD',
-            mySecret: 'BAD',
-            myToken: 'BAD',
-            myPassword: 'BAD',
-            user: {
-              bar: 'baz',
-              secret: 'BAD',
-              token: 'BAD',
-              password: 'BAD',
-              mySecret: 'BAD',
-              myToken: 'BAD',
-              myPassword: 'BAD',
-            },
+            token: 'BAD',
+            secret: 'BAD',
+            hash: 'BAD',
+            jwt: 'BAD',
           },
         },
       });
       runRequest(ctx, {
-        recordParams: true,
+        shouldLogVerbose: () => true,
       });
       assertBodyRecorded({
-        bar: 'baz',
-        user: {
-          bar: 'baz',
-        },
+        name: 'test',
       });
     });
 
-    it('should allow customization of included fields', () => {
+    it('should filter with allowedFields as a string', () => {
       const ctx = createContext({
-        url: '/foo',
-        method: 'POST',
         status: 400,
         request: {
-          body: {
-            bar: 'baz',
-            test1: 'test1',
-            test2: 'test2',
-            sensitive: 'sensitive',
-            user: {
-              bar: 'baz',
-              test1: 'test1',
-              test2: 'test2',
-              sensitive: 'sensitive',
-            },
-          },
-        },
-        response: {
-          headers: {
-            'content-length': '2048',
-          },
+          body: { bar: 'baz', other: 'value' },
         },
       });
-
       runRequest(ctx, {
-        recordParams: [
-          {
-            path: '/foo',
-            include: ['bar', 'user.bar'],
-          },
-        ],
+        shouldLogVerbose: () => true,
+        allowedFields: 'bar',
+        disallowedFields: [],
       });
-      assertBodyRecorded({
-        bar: 'baz',
-        user: {
-          bar: 'baz',
-        },
-      });
+      assertBodyRecorded({ bar: 'baz' });
     });
 
-    it('should allow exclusion of fields', () => {
+    it('should filter with allowedFields as an array', () => {
       const ctx = createContext({
-        url: '/foo',
-        method: 'POST',
         status: 400,
         request: {
-          body: {
-            bar: 'baz',
-            test1: 'test1',
-            test2: 'test2',
-            user: {
-              bar: 'baz',
-              test1: 'test1',
-              test2: 'test2',
-            },
-          },
-        },
-        response: {
-          headers: {
-            'content-length': '2048',
-          },
+          body: { bar: 'baz', other: 'value', extra: 'data' },
         },
       });
-
       runRequest(ctx, {
-        recordParams: [
-          {
-            path: '/foo',
-            exclude: ['bar', 'user.bar'],
-          },
-        ],
+        shouldLogVerbose: () => true,
+        allowedFields: ['bar', 'other'],
+        disallowedFields: [],
       });
-      assertBodyRecorded({
-        test1: 'test1',
-        test2: 'test2',
-      });
+      assertBodyRecorded({ bar: 'baz', other: 'value' });
     });
 
-    it('should not include field when excludes are set', () => {
+    it('should filter with allowedFields as a regex', () => {
       const ctx = createContext({
-        url: '/foo',
-        method: 'POST',
         status: 400,
         request: {
-          body: {
-            bar: 'baz',
-            test1: 'test1',
-            test2: 'test2',
-            user: {
-              bar: 'baz',
-              test1: 'test1',
-              test2: 'test2',
-            },
-          },
-        },
-        response: {
-          headers: {
-            'content-length': '2048',
-          },
+          body: { fooName: 'a', fooValue: 'b', other: 'c' },
         },
       });
-
       runRequest(ctx, {
-        recordParams: [
-          {
-            path: '/foo',
-            include: ['bar'],
-            exclude: ['test1'],
-          },
-        ],
+        shouldLogVerbose: () => true,
+        allowedFields: /^foo/,
+        disallowedFields: [],
       });
-      assertBodyRecorded({
-        bar: 'baz',
-      });
+      assertBodyRecorded({ fooName: 'a', fooValue: 'b' });
     });
 
-    it('should exclude nested', () => {
+    it('should filter with allowedFields as a function', () => {
       const ctx = createContext({
         url: '/foo',
-        method: 'POST',
         status: 400,
         request: {
-          body: {
-            bar: 'baz',
-            test1: 'test1',
-            test2: 'test2',
-            user: {
-              bar: 'baz',
-              test1: 'test1',
-              test2: 'test2',
-            },
-          },
-        },
-        response: {
-          headers: {
-            'content-length': '2048',
-          },
+          body: { bar: 'baz', other: 'value' },
         },
       });
-
       runRequest(ctx, {
-        recordParams: [
-          {
-            path: '/foo',
-            exclude: ['user.bar'],
-          },
-        ],
+        shouldLogVerbose: () => true,
+        allowedFields: (ctx) => {
+          return ctx.url === '/foo' ? ['bar'] : [];
+        },
+        disallowedFields: [],
       });
-      assertBodyRecorded({
-        bar: 'baz',
-        test1: 'test1',
-        test2: 'test2',
-        user: {
-          test1: 'test1',
-          test2: 'test2',
+      assertBodyRecorded({ bar: 'baz' });
+    });
+
+    it('should filter with disallowedFields as a string', () => {
+      const ctx = createContext({
+        status: 400,
+        request: {
+          body: { bar: 'baz', secret: 'BAD' },
         },
       });
+      runRequest(ctx, {
+        shouldLogVerbose: () => true,
+        disallowedFields: 'secret',
+      });
+      assertBodyRecorded({ bar: 'baz' });
+    });
+
+    it('should filter with disallowedFields as an array', () => {
+      const ctx = createContext({
+        status: 400,
+        request: {
+          body: { bar: 'baz', bad1: 'x', bad2: 'y' },
+        },
+      });
+      runRequest(ctx, {
+        shouldLogVerbose: () => true,
+        disallowedFields: ['bad1', 'bad2'],
+      });
+      assertBodyRecorded({ bar: 'baz' });
+    });
+
+    it('should filter with disallowedFields as a regex', () => {
+      const ctx = createContext({
+        status: 400,
+        request: {
+          body: { bar: 'baz', mySecret: 'x', myToken: 'y' },
+        },
+      });
+      runRequest(ctx, {
+        shouldLogVerbose: () => true,
+        disallowedFields: /secret|token/i,
+      });
+      assertBodyRecorded({ bar: 'baz' });
+    });
+
+    it('should filter with disallowedFields as a function', () => {
+      const ctx = createContext({
+        url: '/foo',
+        status: 400,
+        request: {
+          body: { bar: 'baz', internal: 'hidden' },
+        },
+      });
+      runRequest(ctx, {
+        shouldLogVerbose: () => true,
+        disallowedFields: (ctx) => {
+          return ctx.url === '/foo' ? ['internal'] : [];
+        },
+      });
+      assertBodyRecorded({ bar: 'baz' });
+    });
+
+    it('should apply both allowedFields and disallowedFields', () => {
+      const ctx = createContext({
+        status: 400,
+        request: {
+          body: { bar: 'baz', other: 'value', bad: 'x' },
+        },
+      });
+      runRequest(ctx, {
+        shouldLogVerbose: () => true,
+        allowedFields: ['bar', 'bad'],
+        disallowedFields: ['bad'],
+      });
+      assertBodyRecorded({ bar: 'baz' });
+    });
+
+    it('should apply filters to query params as well', () => {
+      const ctx = createContext({
+        status: 400,
+        request: {
+          query: { q: 'search', token: 'BAD' },
+        },
+      });
+      runRequest(ctx, {
+        shouldLogVerbose: () => true,
+      });
+      assertQueryRecorded({ q: 'search' });
     });
   });
 });
