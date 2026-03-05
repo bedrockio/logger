@@ -68,7 +68,6 @@ function getRequestInfo(ctx, options) {
     serverIp,
     protocol,
     userAgent,
-    headers,
     size,
   };
 }

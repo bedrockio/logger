@@ -51,27 +51,40 @@ export default class GoogleCloudLogger extends BaseLogger {
 
   formatRequest(info) {
     // https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry
-    let { level, method, path, latency, size } = info;
+    let {
+      size,
+      path,
+      level,
+      method,
+      latency,
+      status,
+      referer,
+      remoteIp,
+      serverIp,
+      protocol,
+      userAgent,
+      requestLength,
+      responseLength,
+      ...rest
+    } = info;
     const severity = SEVERITY_MAP[level] || 'INFO';
     const message = `${method} ${path} ${size} - ${latency}ms`;
 
     this.emitPayload({
+      ...rest,
       message,
       severity,
-      userId: info.userId,
-      requestBody: info.requestBody,
-      requestQuery: info.requestQuery,
       httpRequest: {
         requestMethod: method,
         requestUrl: path,
         requestSize: info.requestLength?.toString(),
         responseSize: info.responseLength?.toString(),
-        status: info.status,
-        referer: info.referer,
-        remoteIp: info.remoteIp,
-        serverIp: info.serverIp,
-        protocol: info.protocol,
-        userAgent: info.userAgent,
+        status,
+        referer,
+        remoteIp,
+        serverIp,
+        protocol,
+        userAgent,
         latency: `${latency / 1000}s`,
       },
     });
