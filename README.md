@@ -131,6 +131,24 @@ const app = new Koa();
 app.use(logger.middleware());
 ```
 
+### Extra Fields
+
+You can append custom fields to every log entry with `getExtraFields` — a
+function that receives the Koa context and returns an object of fields to
+include.
+
+```js
+app.use(logger.middleware({
+  getExtraFields: (ctx) => ({
+    organizationId: ctx.state?.organization?.id,
+    requestId: ctx.get('x-request-id'),
+  }),
+}));
+```
+
+Note: `getExtraFields` is ignored when `shouldLogVerbose` is active, as verbose
+logging provides its own set of extra fields.
+
 ### Custom Log Level
 
 By default, requests with status >= 500 are logged at `error` level and all

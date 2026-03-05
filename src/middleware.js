@@ -26,9 +26,15 @@ export default function middleware(options) {
 }
 
 function assertOptions(options = {}) {
-  const { shouldLogVerbose } = options;
-  if (shouldLogVerbose && typeof shouldLogVerbose !== 'function') {
-    throw new Error('shouldLogVerbose must be a function.');
+  const { getExtraFields, shouldLogVerbose } = options;
+
+  assertFunction(getExtraFields);
+  assertFunction(shouldLogVerbose);
+}
+
+function assertFunction(arg) {
+  if (arg && typeof arg !== 'function') {
+    throw new Error('Argument must be a function.');
   }
 }
 
@@ -84,7 +90,7 @@ function getLogLevel(ctx, options = {}) {
 const BLACKLIST = /token|password|secret|hash|jwt/i;
 
 function getRequestExtra(ctx, options = {}) {
-  const { shouldLogVerbose } = options;
+  const { getExtraFields, shouldLogVerbose } = options;
 
   let extra;
 
@@ -94,6 +100,8 @@ function getRequestExtra(ctx, options = {}) {
       requestQuery: applyFilters(ctx, ctx.request.query, options),
       responseBody: applyFilters(ctx, ctx.response.body, options),
     };
+  } else {
+    extra = getExtraFields?.(ctx);
   }
 
   if (extra) {
@@ -150,6 +158,9 @@ function resolveFields(ctx, arg) {
 
 /**
  * @typedef {Object} MiddlewareOptions
+ * @property {(ctx: Object) => Object} [getExtraFields] Function that receives the
+ *   Koa context and returns an object of extra fields to append to the log entry.
+ *   Ignored when shouldLogVerbose is active.
  * @property {(ctx: Object) => any} [shouldLogVerbose] Function that receives the
  *   Koa context and returns truthy to enable verbose logging (request body, query,
  *   response body) for that request.

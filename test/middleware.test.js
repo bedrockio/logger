@@ -359,7 +359,7 @@ describe('google cloud middleware', () => {
     it('should throw if shouldLogVerbose is not a function', () => {
       expect(() => {
         middleware({ shouldLogVerbose: true });
-      }).toThrow('shouldLogVerbose must be a function.');
+      }).toThrow('Argument must be a function.');
     });
 
     it('should record request body when shouldLogVerbose returns true', () => {
@@ -647,6 +647,69 @@ describe('google cloud middleware', () => {
         shouldLogVerbose: () => true,
       });
       assertQueryRecorded({ q: 'search' });
+    });
+  });
+
+  describe('extra fields', () => {
+    it('should throw if getExtraFields is not a function', () => {
+      expect(() => {
+        middleware({ getExtraFields: true });
+      }).toThrow('Argument must be a function.');
+    });
+
+    it('should append extra fields to the log', () => {
+      const ctx = createContext({
+        url: '/foo',
+        method: 'POST',
+        status: 200,
+      });
+      runRequest(ctx, {
+        getExtraFields: () => ({ customField: 'hello' }),
+      });
+      const [, message] = getMessages()[0];
+      expect(JSON.parse(message)).toMatchObject({
+        customField: 'hello',
+      });
+    });
+
+    it('should pass context to getExtraFields', () => {
+      const getExtraFields = jest.fn(() => ({}));
+      const ctx = createContext({
+        url: '/foo',
+        method: 'POST',
+        status: 200,
+      });
+      runRequest(ctx, { getExtraFields });
+      expect(getExtraFields).toHaveBeenCalledWith(ctx);
+    });
+
+    it('should not append extra fields when shouldLogVerbose is active', () => {
+      const ctx = createContext({
+        status: 400,
+        request: {
+          body: { bar: 'baz' },
+        },
+      });
+      runRequest(ctx, {
+        shouldLogVerbose: () => true,
+        getExtraFields: () => ({ customField: 'hello' }),
+      });
+      const [, message] = getMessages()[0];
+      const parsed = JSON.parse(message);
+      assertBodyRecorded({ bar: 'baz' });
+      expect(parsed).not.toHaveProperty('customField');
+    });
+
+    it('should handle getExtraFields returning undefined', () => {
+      const ctx = createContext({
+        url: '/foo',
+        method: 'POST',
+        status: 200,
+      });
+      runRequest(ctx, {
+        getExtraFields: () => undefined,
+      });
+      expect(getMessages().length).toBe(1);
     });
   });
 });
