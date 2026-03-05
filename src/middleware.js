@@ -87,19 +87,30 @@ const BLACKLIST = /token|password|secret|hash|jwt/i;
 function getRequestExtra(ctx, options = {}) {
   const { shouldLogVerbose } = options;
 
-  if (!shouldLogVerbose) {
-    return {};
-  }
+  let extra;
 
   if (shouldLogVerbose?.(ctx)) {
-    return {
+    extra = {
       requestBody: applyFilters(ctx, ctx.request.body, options),
       requestQuery: applyFilters(ctx, ctx.request.query, options),
       responseBody: applyFilters(ctx, ctx.response.body, options),
     };
   }
 
-  return {};
+  if (extra) {
+    assertMaxBytes(extra);
+  }
+
+  return extra || {};
+}
+
+const MAX_BYTES = 200_000;
+
+function assertMaxBytes(obj) {
+  const bytes = Buffer.byteLength(JSON.stringify(obj), 'utf8');
+  if (bytes > MAX_BYTES) {
+    throw new Error('Maximum log size exceeded.');
+  }
 }
 
 function applyFilters(ctx, obj, options) {

@@ -619,6 +619,23 @@ describe('google cloud middleware', () => {
       expect(parsed).not.toHaveProperty('requestBody');
     });
 
+    it('should throw when verbose log exceeds 256KB', () => {
+      const ctx = createContext({
+        status: 400,
+        request: {
+          body: {
+            name: 'test',
+            payload: 'x'.repeat(256 * 1024),
+          },
+        },
+      });
+      expect(() => {
+        runRequest(ctx, {
+          shouldLogVerbose: () => true,
+        });
+      }).toThrow('Maximum log size exceeded.');
+    });
+
     it('should apply filters to query params as well', () => {
       const ctx = createContext({
         status: 400,
