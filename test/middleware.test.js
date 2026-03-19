@@ -625,7 +625,7 @@ describe('google cloud middleware', () => {
         request: {
           body: {
             name: 'test',
-            payload: 'x'.repeat(256 * 1024),
+            payload: new Array(256 * 1024).fill('a'),
           },
         },
       });
@@ -710,6 +710,21 @@ describe('google cloud middleware', () => {
         getExtraFields: () => undefined,
       });
       expect(getMessages().length).toBe(1);
+    });
+
+    it('should truncate long fields', () => {
+      const ctx = createContext({
+        status: 400,
+        request: {
+          body: { foo: 'a'.repeat(1000) },
+        },
+      });
+      runRequest(ctx, {
+        shouldLogVerbose: () => true,
+      });
+      assertBodyRecorded({
+        foo: `${'a'.repeat(500)} [TRUNCATED]`,
+      });
     });
   });
 });

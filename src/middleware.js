@@ -139,7 +139,7 @@ function applyFilters(ctx, obj, options) {
   }
 
   if (Object.keys(obj).length) {
-    return obj;
+    return truncateStrings(obj);
   }
 }
 
@@ -210,4 +210,27 @@ function filter(obj, arr, allow) {
     }
   }
   return result;
+}
+
+const TRUNCATE_LIMIT = 500;
+
+function truncateStrings(arg) {
+  if (Array.isArray(arg)) {
+    return arg.map(truncateStrings);
+  } else if (isObject(arg)) {
+    const result = {};
+    for (let [key, value] of Object.entries(arg)) {
+      result[key] = truncateStrings(value);
+    }
+    return result;
+  } else if (typeof arg === 'string') {
+    if (arg.length > TRUNCATE_LIMIT) {
+      arg = `${arg.slice(0, 500)} [TRUNCATED]`;
+    }
+  }
+  return arg;
+}
+
+function isObject(arg) {
+  return arg && Object.getPrototypeOf(arg) === Object.prototype;
 }
