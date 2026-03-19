@@ -225,7 +225,7 @@ function truncateStrings(arg) {
     return result;
   } else if (typeof arg === 'string') {
     if (arg.length > TRUNCATE_LIMIT) {
-      arg = `${arg.slice(0, 500)} [TRUNCATED]`;
+      arg = `${arg.slice(0, 500)}... [TRUNCATED]`;
     }
   }
   return arg;

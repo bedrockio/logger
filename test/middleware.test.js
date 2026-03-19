@@ -723,7 +723,7 @@ describe('google cloud middleware', () => {
         shouldLogVerbose: () => true,
       });
       assertBodyRecorded({
-        foo: `${'a'.repeat(500)} [TRUNCATED]`,
+        foo: `${'a'.repeat(500)}... [TRUNCATED]`,
       });
     });
   });
