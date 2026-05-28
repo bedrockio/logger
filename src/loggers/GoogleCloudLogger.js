@@ -36,16 +36,13 @@ export default class GoogleCloudLogger extends BaseLogger {
   }
 
   emit(severity, ...args) {
-    const jsonPayload = {
-      context: this.options.context,
-    };
-
     const message = this.getMessage(args);
 
     this.emitPayload({
+      ...this.getPayloadForArgs(args),
+      context: this.options.context,
       severity,
       message,
-      ...jsonPayload,
     });
   }
 
@@ -95,7 +92,30 @@ export default class GoogleCloudLogger extends BaseLogger {
     if (getTracePayload) {
       Object.assign(payload, getTracePayload());
     }
-    log(JSON.stringify(payload));
+    let str;
+    try {
+      str = JSON.stringify(payload);
+    } catch (err) {
+      if (!(err instanceof TypeError)) {
+        throw err;
+      }
+      str = err.message.includes('circular')
+        ? '[Cyclic Object]'
+        : '[Unserializable Object]';
+    }
+    log(str);
+  }
+
+  getPayloadForArgs(args) {
+    const result = {};
+    for (let arg of args) {
+      if (typeof arg !== 'object' || Array.isArray(arg)) {
+        continue;
+      }
+      Object.assign(result, arg);
+    }
+
+    return result;
   }
 }
 

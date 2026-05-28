@@ -1,4 +1,9 @@
-import { mockConsole, unmockConsole, getParsedMessages } from './mocks/console';
+import {
+  mockConsole,
+  unmockConsole,
+  getMessages,
+  getParsedMessages,
+} from './mocks/console';
 import GoogleCloudLogger from '../src/loggers/GoogleCloudLogger';
 
 const logger = new GoogleCloudLogger();
@@ -133,6 +138,7 @@ describe('complex logging', () => {
       [
         'log',
         {
+          foo: 'bar',
           severity: 'INFO',
           message: "{ foo: 'bar' }",
         },
@@ -152,6 +158,9 @@ describe('complex logging', () => {
         {
           severity: 'INFO',
           message: "an object { foo: { bar: 'baz' } }",
+          foo: {
+            bar: 'baz',
+          },
         },
       ],
     ]);
@@ -178,6 +187,7 @@ describe('complex logging', () => {
         {
           severity: 'INFO',
           message: "a user { name: 'Joe' } and a shop { name: 'Wendys' }",
+          name: 'Wendys',
         },
       ],
     ]);
@@ -218,6 +228,13 @@ describe('truncation depth', () => {
         {
           severity: 'INFO',
           message: '{ foo: { bar: { baz: [Object] } } }',
+          foo: {
+            bar: {
+              baz: {
+                qux: 'qux',
+              },
+            },
+          },
         },
       ],
     ]);
@@ -240,6 +257,13 @@ describe('truncation depth', () => {
         {
           severity: 'INFO',
           message: '{ foo: { bar: [Object] } }',
+          foo: {
+            bar: {
+              baz: {
+                qux: 'qux',
+              },
+            },
+          },
         },
       ],
     ]);
@@ -264,6 +288,13 @@ describe('truncation depth', () => {
           message: `{
   foo: { bar: { baz: { qux: 'qux' } } }
 }`,
+          foo: {
+            bar: {
+              baz: {
+                qux: 'qux',
+              },
+            },
+          },
         },
       ],
     ]);
@@ -289,6 +320,13 @@ describe('truncation depth', () => {
         {
           severity: 'INFO',
           message: expected,
+          foo: {
+            bar: {
+              baz: {
+                qux: 'qux',
+              },
+            },
+          },
         },
       ],
     ]);
@@ -330,15 +368,12 @@ describe('truncation depth', () => {
     obj.bar = obj;
     logger.info(obj);
 
-    expect(getParsedMessages()).toEqual([
-      [
-        'log',
-        {
-          severity: 'INFO',
-          message: "<ref *1> { foo: 'bar', bar: [Circular *1] }",
-        },
-      ],
-    ]);
+    expect(getMessages()).toEqual([['log', '[Cyclic Object]']]);
+  });
+
+  it('should handle an unserializable value such as a BigInt', async () => {
+    logger.info({ big: 1n });
+    expect(getMessages()).toEqual([['log', '[Unserializable Object]']]);
   });
 });
 
