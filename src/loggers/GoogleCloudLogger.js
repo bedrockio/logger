@@ -116,8 +116,10 @@ export default class GoogleCloudLogger extends BaseLogger {
         Object.assign(result, {
           ...arg,
           name: arg.name,
-          stack: arg.stack,
           message: arg.message,
+          // Note this is a special field that will expose the stack trace to Cloud Error Reporting.
+          // https://docs.cloud.google.com/error-reporting/docs/formatting-error-messages#log-error
+          stack_trace: arg.stack,
         });
       } else {
         Object.assign(result, arg);

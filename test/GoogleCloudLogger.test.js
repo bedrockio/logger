@@ -83,7 +83,7 @@ describe('error logging', () => {
           message: error.stack,
           severity: 'ERROR',
           name: 'Error',
-          stack: error.stack,
+          stack_trace: error.stack,
         },
       ],
     ]);
@@ -100,7 +100,7 @@ describe('error logging', () => {
           message: [error1.stack, error2.stack].join(' '),
           severity: 'ERROR',
           name: 'Error',
-          stack: error2.stack,
+          stack_trace: error2.stack,
         },
       ],
     ]);
@@ -116,10 +116,18 @@ describe('error logging', () => {
           message: [error.stack, 'hello!'].join(' '),
           severity: 'ERROR',
           name: 'Error',
-          stack: error.stack,
+          stack_trace: error.stack,
         },
       ],
     ]);
+  });
+
+  it('should expose error stack under stack_trace for Cloud Error Reporting', async () => {
+    const error = new Error('Boom!');
+    logger.error(error);
+    const [[, payload]] = getParsedMessages();
+    expect(payload.stack_trace).toBe(error.stack);
+    expect(payload.stack).toBeUndefined();
   });
 
   it('should capture non-enumerable properties of a custom Error', async () => {
@@ -139,7 +147,7 @@ describe('error logging', () => {
           message: inspect(error, { depth: 2 }),
           severity: 'ERROR',
           name: 'CustomError',
-          stack: error.stack,
+          stack_trace: error.stack,
           code: 'E_BOOM',
         },
       ],
