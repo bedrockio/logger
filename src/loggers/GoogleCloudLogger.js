@@ -112,7 +112,16 @@ export default class GoogleCloudLogger extends BaseLogger {
       if (typeof arg !== 'object' || Array.isArray(arg)) {
         continue;
       }
-      Object.assign(result, arg);
+      if (arg instanceof Error) {
+        Object.assign(result, {
+          ...arg,
+          name: arg.name,
+          stack: arg.stack,
+          message: arg.message,
+        });
+      } else {
+        Object.assign(result, arg);
+      }
     }
 
     return result;

@@ -1,3 +1,4 @@
+import { inspect } from 'util';
 import {
   mockConsole,
   unmockConsole,
@@ -81,6 +82,8 @@ describe('error logging', () => {
         {
           message: error.stack,
           severity: 'ERROR',
+          name: 'Error',
+          stack: error.stack,
         },
       ],
     ]);
@@ -96,6 +99,8 @@ describe('error logging', () => {
         {
           message: [error1.stack, error2.stack].join(' '),
           severity: 'ERROR',
+          name: 'Error',
+          stack: error2.stack,
         },
       ],
     ]);
@@ -110,6 +115,32 @@ describe('error logging', () => {
         {
           message: [error.stack, 'hello!'].join(' '),
           severity: 'ERROR',
+          name: 'Error',
+          stack: error.stack,
+        },
+      ],
+    ]);
+  });
+
+  it('should capture non-enumerable properties of a custom Error', async () => {
+    class CustomError extends Error {
+      constructor(message, code) {
+        super(message);
+        this.name = 'CustomError';
+        this.code = code;
+      }
+    }
+    const error = new CustomError('Boom!', 'E_BOOM');
+    logger.error(error);
+    expect(getParsedMessages()).toEqual([
+      [
+        'log',
+        {
+          message: inspect(error, { depth: 2 }),
+          severity: 'ERROR',
+          name: 'CustomError',
+          stack: error.stack,
+          code: 'E_BOOM',
         },
       ],
     ]);
