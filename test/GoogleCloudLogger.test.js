@@ -1,4 +1,10 @@
-import { mockConsole, unmockConsole, getParsedMessages } from './mocks/console';
+import { inspect } from 'util';
+import {
+  mockConsole,
+  unmockConsole,
+  getMessages,
+  getParsedMessages,
+} from './mocks/console';
 import GoogleCloudLogger from '../src/loggers/GoogleCloudLogger';
 
 const logger = new GoogleCloudLogger();
@@ -76,6 +82,8 @@ describe('error logging', () => {
         {
           message: error.stack,
           severity: 'ERROR',
+          name: 'Error',
+          stack_trace: error.stack,
         },
       ],
     ]);
@@ -91,6 +99,8 @@ describe('error logging', () => {
         {
           message: [error1.stack, error2.stack].join(' '),
           severity: 'ERROR',
+          name: 'Error',
+          stack_trace: error2.stack,
         },
       ],
     ]);
@@ -105,6 +115,40 @@ describe('error logging', () => {
         {
           message: [error.stack, 'hello!'].join(' '),
           severity: 'ERROR',
+          name: 'Error',
+          stack_trace: error.stack,
+        },
+      ],
+    ]);
+  });
+
+  it('should expose error stack under stack_trace for Cloud Error Reporting', async () => {
+    const error = new Error('Boom!');
+    logger.error(error);
+    const [[, payload]] = getParsedMessages();
+    expect(payload.stack_trace).toBe(error.stack);
+    expect(payload.stack).toBeUndefined();
+  });
+
+  it('should capture non-enumerable properties of a custom Error', async () => {
+    class CustomError extends Error {
+      constructor(message, code) {
+        super(message);
+        this.name = 'CustomError';
+        this.code = code;
+      }
+    }
+    const error = new CustomError('Boom!', 'E_BOOM');
+    logger.error(error);
+    expect(getParsedMessages()).toEqual([
+      [
+        'log',
+        {
+          message: inspect(error, { depth: 2 }),
+          severity: 'ERROR',
+          name: 'CustomError',
+          stack_trace: error.stack,
+          code: 'E_BOOM',
         },
       ],
     ]);
@@ -133,6 +177,7 @@ describe('complex logging', () => {
       [
         'log',
         {
+          foo: 'bar',
           severity: 'INFO',
           message: "{ foo: 'bar' }",
         },
@@ -152,6 +197,9 @@ describe('complex logging', () => {
         {
           severity: 'INFO',
           message: "an object { foo: { bar: 'baz' } }",
+          foo: {
+            bar: 'baz',
+          },
         },
       ],
     ]);
@@ -178,6 +226,7 @@ describe('complex logging', () => {
         {
           severity: 'INFO',
           message: "a user { name: 'Joe' } and a shop { name: 'Wendys' }",
+          name: 'Wendys',
         },
       ],
     ]);
@@ -218,6 +267,13 @@ describe('truncation depth', () => {
         {
           severity: 'INFO',
           message: '{ foo: { bar: { baz: [Object] } } }',
+          foo: {
+            bar: {
+              baz: {
+                qux: 'qux',
+              },
+            },
+          },
         },
       ],
     ]);
@@ -240,6 +296,13 @@ describe('truncation depth', () => {
         {
           severity: 'INFO',
           message: '{ foo: { bar: [Object] } }',
+          foo: {
+            bar: {
+              baz: {
+                qux: 'qux',
+              },
+            },
+          },
         },
       ],
     ]);
@@ -264,6 +327,13 @@ describe('truncation depth', () => {
           message: `{
   foo: { bar: { baz: { qux: 'qux' } } }
 }`,
+          foo: {
+            bar: {
+              baz: {
+                qux: 'qux',
+              },
+            },
+          },
         },
       ],
     ]);
@@ -289,6 +359,13 @@ describe('truncation depth', () => {
         {
           severity: 'INFO',
           message: expected,
+          foo: {
+            bar: {
+              baz: {
+                qux: 'qux',
+              },
+            },
+          },
         },
       ],
     ]);
@@ -330,15 +407,12 @@ describe('truncation depth', () => {
     obj.bar = obj;
     logger.info(obj);
 
-    expect(getParsedMessages()).toEqual([
-      [
-        'log',
-        {
-          severity: 'INFO',
-          message: "<ref *1> { foo: 'bar', bar: [Circular *1] }",
-        },
-      ],
-    ]);
+    expect(getMessages()).toEqual([['log', '[Cyclic Object]']]);
+  });
+
+  it('should handle an unserializable value such as a BigInt', async () => {
+    logger.info({ big: 1n });
+    expect(getMessages()).toEqual([['log', '[Unserializable Object]']]);
   });
 });
 
