@@ -205,6 +205,22 @@ describe('complex logging', () => {
     ]);
   });
 
+  it('should merge the toJSON output for objects that define it', async () => {
+    const doc = {
+      _id: 'abc123',
+      _internal: 'hidden',
+      toJSON() {
+        return { id: 'abc123', name: 'thing' };
+      },
+    };
+    logger.info('saved', doc);
+    const [[, payload]] = getParsedMessages();
+    expect(payload.id).toBe('abc123');
+    expect(payload.name).toBe('thing');
+    expect(payload._id).toBeUndefined();
+    expect(payload._internal).toBeUndefined();
+  });
+
   it('should log array of strings as message', async () => {
     logger.info(['foo', 'bar']);
     expect(getParsedMessages()).toEqual([
