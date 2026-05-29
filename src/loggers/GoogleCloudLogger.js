@@ -112,6 +112,11 @@ export default class GoogleCloudLogger extends BaseLogger {
       if (typeof arg !== 'object' || Array.isArray(arg)) {
         continue;
       }
+
+      if (arg.toJSON) {
+        arg = arg.toJSON();
+      }
+
       if (arg instanceof Error) {
         Object.assign(result, {
           ...arg,
