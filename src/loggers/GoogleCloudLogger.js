@@ -1,5 +1,6 @@
 import consoleAsync from '../utils/async-console';
 import { isTTY } from '../utils/env';
+import { getRequestContext, isValidTraceId } from '../utils/request-context';
 
 import BaseLogger from './BaseLogger';
 
@@ -88,10 +89,11 @@ export default class GoogleCloudLogger extends BaseLogger {
   }
 
   emitPayload(payload) {
-    const { getTracePayload } = this.options;
-    if (getTracePayload) {
-      Object.assign(payload, getTracePayload());
-    }
+    // Fields the caller logged take precedence over request fields.
+    payload = {
+      ...this.getRequestPayload(),
+      ...payload,
+    };
     let str;
     try {
       str = JSON.stringify(payload);
@@ -104,6 +106,25 @@ export default class GoogleCloudLogger extends BaseLogger {
         : '[Unserializable Object]';
     }
     log(str);
+  }
+
+  getRequestPayload() {
+    const request = getRequestContext();
+    let span = this.options.getSpanContext?.();
+    if (!isValidTraceId(span?.traceId)) {
+      span = undefined;
+    }
+    const traceId = span?.traceId || request?.traceId;
+    return {
+      requestId: request?.requestId,
+      ...(traceId && {
+        'logging.googleapis.com/trace': traceId,
+      }),
+      ...(span && {
+        'logging.googleapis.com/spanId': span.spanId,
+        'logging.googleapis.com/trace_sampled': (span.traceFlags & 1) === 1,
+      }),
+    };
   }
 
   getPayloadForArgs(args) {

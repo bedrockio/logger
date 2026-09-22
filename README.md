@@ -6,7 +6,7 @@ includes:
 - Pretty formatting for the console.
 - Request logging [middleware](#middleware).
 - Google Cloud structured logger.
-- Google Cloud batched tracing via [OpenTelemetry](https://opentelemetry.io/).
+- Request correlation of Google Cloud logs via trace headers.
 
 ## Install
 
@@ -21,26 +21,38 @@ const logger = require('@bedrockio/logger');
 logger.setupGoogleCloud({
   // Set up gcloud structured logging. Default true.
   logging: true,
-  // Set up gcloud tracing. Default true.
-  tracing: true,
 });
 ```
 
 This initialization code should be added as early as possible in your
 application.
 
-### Options
+### Tracing
 
-Enable both logging and tracing and tell the tracing to ignore specific paths.
+No setup is needed to group logs by request. The [middleware](#request-context)
+adds the trace id of the incoming request to every Google Cloud log written
+while handling it, and Logs Explorer shows logs with the same trace id
+together.
+
+If your app also runs [OpenTelemetry](https://opentelemetry.io/), pass the
+active span to the logger:
 
 ```js
-const logger = require('@bedrockio/logger');
+const { trace } = require('@opentelemetry/api');
 logger.setupGoogleCloud({
-  tracing: {
-    ignoreIncomingPaths: ['/'],
-  },
+  getSpanContext: () => trace.getActiveSpan()?.spanContext(),
 });
 ```
+
+This is required for logs to show up in Cloud Trace:
+
+- Logs use the span's trace id. Without it they use the trace id from the load
+  balancer's `X-Cloud-Trace-Context` header, which OpenTelemetry does not read
+  by default, so logs and spans end up in different traces.
+- Logs are attached to the span that wrote them (`spanId`) and marked as sampled
+  or not (`trace_sampled`).
+
+When no span is active, logs fall back to the request's trace id.
 
 ## Log Levels
 
@@ -65,14 +77,8 @@ Sets the logger to use console output for development. This is the default.
 Sets the logger to output structured logs in JSON format. Accepts an `options`
 object:
 
-- `getTracePayload` - This connects the logger to tracing, allowing you to batch
-  logs by requests.
-
-#### `logger.useGoogleCloudTracing`
-
-Enables batched Google Cloud tracing for Koa and Mongoose. This will allow
-discovery of slow operations in your application. The
-[Cloud Trace](https://cloud.google.com/trace) API must be enabled to use this.
+- `getSpanContext` - Returns `{ traceId, spanId, traceFlags }` for the active
+  span, or `undefined`. See [Tracing](#tracing).
 
 ### Logger Methods
 
@@ -131,6 +137,22 @@ const app = new Koa();
 app.use(logger.middleware());
 ```
 
+### Request Context
+
+The middleware runs each request in a context that is added to every Google
+Cloud log written while handling it:
+
+- `requestId` - A UUID generated for each request.
+- `logging.googleapis.com/trace` - The trace id from the `traceparent` header,
+  falling back to `X-Cloud-Trace-Context` set by Google Cloud HTTP load
+  balancers. When neither arrives, for example behind a TCP load balancer, a
+  trace id is generated. Logs Explorer groups logs of a request by it. Span ids
+  in these headers belong to the caller and are not logged.
+
+Register the middleware before other middleware so their logs are included.
+`logger.getRequestContext()` returns the current context, or `undefined`
+outside a request.
+
 ### Extra Fields
 
 You can append custom fields to every log entry with `getExtraFields` — a
@@ -141,7 +163,6 @@ include.
 app.use(logger.middleware({
   getExtraFields: (ctx) => ({
     organizationId: ctx.state?.organization?.id,
-    requestId: ctx.get('x-request-id'),
   }),
 }));
 ```
