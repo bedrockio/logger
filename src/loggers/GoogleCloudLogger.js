@@ -38,10 +38,12 @@ export default class GoogleCloudLogger extends BaseLogger {
 
   emit(severity, ...args) {
     const message = this.getMessage(args);
+    const payload = this.getPayloadForArgs(args);
+    const context = { ...this.options.context, ...payload.context };
 
     this.emitPayload({
-      ...this.getPayloadForArgs(args),
-      context: this.options.context,
+      ...payload,
+      ...(Object.keys(context).length && { context }),
       severity,
       message,
     });

@@ -115,6 +115,21 @@ Multiple arguments will be concatenated together in the console logger. The
 Google Cloud logger will present a truncated message and export complex objects
 to the JSON payload.
 
+### Error Reporting
+
+```js
+logger.error(err, {
+  serviceContext: { service: 'api', version: 'abc1234' },
+  context: { user: userId, httpRequest: { method: 'GET', url } },
+});
+```
+
+The Google Cloud logger writes the error's stack as `stack_trace` and these
+fields as given, which
+[Error Reporting](https://docs.cloud.google.com/error-reporting/docs/formatting-error-messages)
+reads for the version, the request and the user. A `context` passed to a call
+merges over the fields of `logger.context()`.
+
 ### String Formatting
 
 ```js

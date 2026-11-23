@@ -545,6 +545,39 @@ describe('contexts', () => {
       ],
     ]);
   });
+
+  it('should keep a context passed to the call', async () => {
+    const error = new Error('Error!');
+    const fields = {
+      serviceContext: { service: 'api', version: 'abc1234' },
+      context: { user: 'u1', httpRequest: { method: 'GET' } },
+    };
+    logger.error(error, fields);
+    expect(getParsedMessages()).toEqual([
+      [
+        'log',
+        {
+          severity: 'ERROR',
+          message: [error.stack, inspect(fields, { depth: 2 })].join(' '),
+          name: 'Error',
+          stack_trace: error.stack,
+          serviceContext: { service: 'api', version: 'abc1234' },
+          context: { user: 'u1', httpRequest: { method: 'GET' } },
+        },
+      ],
+    ]);
+  });
+
+  it('should merge a call context over the logger context', async () => {
+    logger
+      .context({ foo: 'foo', bar: 'bar' })
+      .info('msg', { context: { bar: 'call', baz: 'baz' } });
+    expect(getParsedMessages()[0][1].context).toEqual({
+      foo: 'foo',
+      bar: 'call',
+      baz: 'baz',
+    });
+  });
 });
 
 describe('request context', () => {
